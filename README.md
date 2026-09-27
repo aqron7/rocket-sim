@@ -17,7 +17,7 @@ with thrust vector control and state estimation.
 Roadmap:
 - [x] Stage 0: environment and repo setup
 - [x] Stage 1: 1D point mass, constant thrust, no drag
-- [ ] Stage 2: real motor thrust curves and mass depletion
+- [x] Stage 2: real motor thrust curves and mass depletion
 - [ ] Stage 3: aerodynamic drag
 - [ ] Stage 4: validation against RPL flight data
 - [ ] Stage 5+: 2D dynamics, gimbaled thrust, control, estimation
