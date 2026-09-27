@@ -1,12 +1,10 @@
 import matplotlib.pyplot as plt
 
 # Constants
-mass = 1.0
-thrust = 20.0
-burn_time = 3.0
+m_loaded = .080
 g = 9.81
-dt = 0.1
-sim_time = 30.0
+dt = 0.001
+sim_time = 50
 
 # Starting state
 t = 0.0
@@ -17,30 +15,34 @@ h = 0.0
 times = []
 velocities = []
 altitudes = []
+launched = False
 
-printed = False
-while t < sim_time:
 
-    # Calculate net force
-    if t < burn_time:
-        F_net = thrust-mass * g
-    else:
-        F_net = -mass * g
-   
 
-    a=F_net/mass
-    v = v + a * dt
-    h = h + v *dt
-    t = t + dt
-    if t >= burn_time and printed == False:
-            printed = True
-            print("Burnout:", v, h)
+from pathlib import Path
+motor_file = Path(__file__).parent / "Estes_D12.eng"
+    
+pairs = [(0.0, 0.0)]
+header_done = False
 
-    times.append(t)
-    velocities.append(v)
-    altitudes.append(h)
+with open(motor_file) as file:
+    for line in file:
+        line = line.strip()
 
-pairs = [(0,0),(.03,2.5),(.10,9),(.18,17.5),(.28,29.7),(.32,18),(.38,12),(.45,10.5),(.72,9.2),(1.25,8.7),(1.6,8.2),(1.64,0)];
+        if line == "" or line.startswith(";"):
+            continue
+
+        parts = line.split()
+
+        if header_done == False:
+            m_prop = float(parts[4])
+            header_done = True
+        else:
+            pairs.append((float(parts[0]), float(parts[1])))
+
+print("Propellant mass:", m_prop)
+
+dry_mass = m_loaded - m_prop
 
 def thrust_at(t):
     # Step 1: outside the burn?
@@ -57,10 +59,54 @@ def thrust_at(t):
             fraction = (t - t_left) / (t_right - t_left)
             change = f_right - f_left
             return f_left + fraction * change
-for test_t in [-0.1, 0.0, 0.28, 0.30, 1.00, 1.64, 2.0]:
-    print(test_t, thrust_at(test_t))
 
 
+I_total = 0.0
+t_int = 0.0
+I_burned = 0.0
+while t_int <= pairs[-1][0]:
+    I_total = I_total + thrust_at(t_int) * dt
+    t_int = t_int + dt
+
+print("Total impulse:", I_total)
+
+printed = False
+while t < sim_time:
+
+    # Calculate net force
+    thrust = thrust_at(t)
+    mass = dry_mass + m_prop * (1 - I_burned / I_total)
+
+    F_net = thrust - mass * g
+
+    I_burned = I_burned + thrust * dt
+    
+    if thrust > mass * g:
+        launched = True
+
+    if launched == False:
+        a = 0
+    else: a = F_net/mass
+
+    if launched == True and h < 0:
+        break
+
+            
+    v = v + a * dt
+    h = h + v *dt
+    t = t + dt
+    if t >= pairs[-1][0] and printed == False:
+            printed = True
+            print("Burnout:", v, h)
+
+    times.append(t)
+    velocities.append(v)
+    altitudes.append(h)
+
+print("Maximum altitude:", max(altitudes))
+print("Maximum velocity:", max(velocities))
+print("mass at burnout:", mass)
+print("Impulse burned:", I_burned)
 plt.plot(times, altitudes)
 plt.xlabel("Time (s)")
 plt.ylabel("Altitude (m)")
